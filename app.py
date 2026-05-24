@@ -148,19 +148,27 @@ def extract_youtube_hls(url: str):
     cookie_file = build_cookie_file()
 
     ydl_opts = {
-        "quiet": True,
-        "skip_download": True,
-        "noplaylist": True,
-        "format": "best[protocol=m3u8]/best",
-        "extractor_args": {
-            "youtube": {
-                "player_client": [
-                    "android",
-                    "web"
-                ]
-            }
+    "quiet": True,
+    "skip_download": True,
+    "noplaylist": True,
+    "format": "95/best[protocol=m3u8]/best",
+    "http_headers": {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/125.0.0.0 Safari/537.36"
+        ),
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.youtube.com/"
+    },
+    "extractor_args": {
+        "youtube": {
+            "player_client": [
+                "web"
+            ]
         }
     }
+}
 
     if cookie_file:
         ydl_opts["cookiefile"] = cookie_file
