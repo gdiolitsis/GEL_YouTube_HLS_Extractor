@@ -1,4 +1,4 @@
-# ===================================== 
+# =====================================
 # GEL IPTV YOUTUBE HLS EXTRACTOR
 # Flask + yt-dlp + Render cookies support
 # =====================================
@@ -52,20 +52,84 @@ def build_cookie_file():
 
 
 # =====================================
+# SAFE COOKIE STATUS
+# No cookie values are exposed
+# =====================================
+
+def get_cookie_status():
+    try:
+        cookies_b64 = os.environ.get(
+            "YT_COOKIES_B64",
+            ""
+        ).strip()
+
+        if not cookies_b64:
+            return {
+                "enabled": False,
+                "decoded_bytes": 0,
+                "line_count": 0,
+                "has_netscape_header": False,
+                "has_youtube_domain": False,
+                "has_google_domain": False,
+                "has_login_info": False,
+                "has_sid": False,
+                "has_sapisid": False,
+                "has_secure_1psid": False,
+                "has_secure_3psid": False
+            }
+
+        text = base64.b64decode(
+            cookies_b64.encode("utf-8")
+        ).decode("utf-8", errors="ignore")
+
+        lines = text.splitlines()
+
+        return {
+            "enabled": True,
+            "decoded_bytes": len(text.encode("utf-8")),
+            "line_count": len(lines),
+            "has_netscape_header": "# Netscape HTTP Cookie File" in text,
+            "has_youtube_domain": "youtube.com" in text,
+            "has_google_domain": "google.com" in text,
+            "has_login_info": "LOGIN_INFO" in text,
+            "has_sid": "\tSID\t" in text or " SID " in text,
+            "has_sapisid": "SAPISID" in text,
+            "has_secure_1psid": "__Secure-1PSID" in text,
+            "has_secure_3psid": "__Secure-3PSID" in text
+        }
+
+    except Exception as e:
+        return {
+            "enabled": False,
+            "error": str(e)
+        }
+
+
+# =====================================
 # EXPIRE PARSER
 # =====================================
 
 def parse_expire_from_url(url):
     try:
-        match = re.search(r"/expire/(\d+)", url)
+        match = re.search(
+            r"/expire/(\d+)",
+            url
+        )
 
         if match:
-            return int(match.group(1))
+            return int(
+                match.group(1)
+            )
 
-        match = re.search(r"[?&]expire=(\d+)", url)
+        match = re.search(
+            r"[?&]expire=(\d+)",
+            url
+        )
 
         if match:
-            return int(match.group(1))
+            return int(
+                match.group(1)
+            )
 
     except Exception:
         pass
@@ -232,7 +296,14 @@ def extract():
         if not result or not result.get("url"):
             return jsonify({
                 "ok": False,
-                "error": "No stream found"
+                "cookies_enabled": bool(
+                    os.environ.get(
+                        "YT_COOKIES_B64",
+                        ""
+                    ).strip()
+                ),
+                "error": "No stream found",
+                "cookie_status": get_cookie_status()
             }), 404
 
         return jsonify({
@@ -255,7 +326,8 @@ def extract():
                     ""
                 ).strip()
             ),
-            "error": str(e)
+            "error": str(e),
+            "cookie_status": get_cookie_status()
         }), 500
 
 
@@ -310,6 +382,19 @@ def m3u():
 
 
 # =====================================
+# COOKIE STATUS ENDPOINT
+# Safe diagnostics only
+# =====================================
+
+@app.route("/cookie_status", methods=["GET"])
+def cookie_status():
+    return jsonify({
+        "ok": True,
+        "cookie_status": get_cookie_status()
+    })
+
+
+# =====================================
 # HEALTH
 # =====================================
 
@@ -326,7 +411,8 @@ def home():
         ),
         "endpoints": {
             "json": "/extract?url=YOUTUBE_URL",
-            "m3u": "/m3u?url=YOUTUBE_URL&name=CHANNEL_NAME"
+            "m3u": "/m3u?url=YOUTUBE_URL&name=CHANNEL_NAME",
+            "cookie_status": "/cookie_status"
         }
     })
 
